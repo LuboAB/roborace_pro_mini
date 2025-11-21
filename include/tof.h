@@ -1,9 +1,9 @@
 #pragma once
 #include <Arduino.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+// #ifdef __cplusplus
+// extern "C" {
+// #endif
 
 // 传感器数量（如需变更在 tof.cpp 同步修改）
 size_t tof_count();
@@ -15,6 +15,6 @@ void tof_setup();
 // 返回 true 表示全部成功（无超时）；若存在超时仍会填入读取值
 bool tof_read_all(uint16_t* out, size_t out_len);
 
-#ifdef __cplusplus
-}
-#endif
+// #ifdef __cplusplus
+// }
+// #endif
