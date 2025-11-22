@@ -39,8 +39,10 @@ void loop()
 
     // myservo.write(g_servoPos);
     // set_speed(g_speed);
-    // uint16_t dist[3] = {0};
-    // tof_read_all(dist, 3);
+    uint16_t dist[3] = {0};
+    uint8_t status[3] = {0};
+    tof_read_all_with_status(dist, status, 3);
+
     g_distance1 = L;
     g_distance2 = R;
     
@@ -62,6 +64,8 @@ void loop()
     display.print("D2: ");
     display.print(F);
     display.println(" mm");
+    display.print(" status:");
+    display.println(status[2]);
     display.display();
 }
 

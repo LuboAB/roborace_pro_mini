@@ -28,7 +28,7 @@ float ki_turn = 0.0f;
 float kd_turn = 0.0f;
 float last_error_turn = 0.0f;
 float last_last_error_turn = 0.0f;
-volatile int F,R,L;
+volatile int F, R, L;
 float pid_position(float target, float current, float *last_error,
                    float kp, float ki, float kd)
 {
@@ -40,9 +40,9 @@ float pid_position(float target, float current, float *last_error,
 float culc_speed(float F)
 {
     if (F >= 800)
-        return 70;
+        return 60;
     else
-        return 70 - 80 / 800 * (800 - F);
+        return 60 - 80 / 800 * (800 - F);
 }
 // 200 Hz 编码器处理任务：每 5 ms 读取增量后清零
 extern Servo myservo;
@@ -56,28 +56,29 @@ static void encoder_task(void *arg)
         int64_t delta = g_encoder.getCount(); // 读取自上次清零以来的增量
 
         uint16_t dis[3];
-        tof_read_all(dis, 3);
+        uint8_t status[3];
+        tof_read_all_with_status(dis, status, 3);
 
         L = dis[0];
-        // if (L ==0)
-        // {
-        //     L = 2000;
-        // }
+        if (L == 0 || status[0] == 2)
+        {
+            L = 2000;
+        }
         R = dis[1];
-        if (R==0)
+        if (R == 0 || status[1] == 2)
         {
             R = 2000;
         }
         F = dis[2];
-        if (F==0)
+        if (F == 0 || status[2] == 2)
         {
             F = 2000;
         }
         float servoPos = 80 + pid_position(0, R - L, &last_error_turn, kp_turn, ki_turn, kd_turn);
-        if (servoPos < 30)
-            servoPos = 30;
-        if (servoPos > 150)
-            servoPos = 150;
+        if (servoPos < 40)
+            servoPos = 40;
+        if (servoPos > 135)
+            servoPos = 135;
         target = culc_speed(F);
         myservo.write(servoPos);
         // target = g_speed * 500;

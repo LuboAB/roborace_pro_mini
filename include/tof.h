@@ -15,6 +15,7 @@ void tof_setup();
 // 返回 true 表示全部成功（无超时）；若存在超时仍会填入读取值
 bool tof_read_all(uint16_t* out, size_t out_len);
 
+bool tof_read_all_with_status(uint16_t *dist, uint8_t *status, size_t len);
 // #ifdef __cplusplus
 // }
 // #endif

@@ -12,8 +12,8 @@ static const int TOF_SDA = 17;
 static const int TOF_SCL = 18;
 static const uint32_t TOF_FREQ = 400000; // 提升到400k加快 I2C 访问
 // 建议为长距离模式集中管理预算与周期
-static const uint32_t TOF_BUDGET_US = 50000;   // 50 ms 预算，提升远距离稳定性
-static const uint16_t TOF_PERIOD_MS = 50;      // 连续测量周期必须 >= 预算
+static const uint32_t TOF_BUDGET_US = 20000;   // 50 ms 预算，提升远距离稳定性
+static const uint16_t TOF_PERIOD_MS = 20;      // 连续测量周期必须 >= 预算
 
 // 多传感器配置
 static const int NUM_TOF = 3;
@@ -21,6 +21,7 @@ static VL53L1X s_tofs[NUM_TOF];
 static const int TOF_XSHUT[NUM_TOF] = {5, 6, 7};
 static const uint8_t TOF_ADDR[NUM_TOF] = {0x2A, 0x2B, 0x2D}; // 运行期地址
 static volatile uint16_t s_dist_mm[NUM_TOF] = {0};
+static volatile uint8_t  s_range_status[NUM_TOF] = {255}; // 255 代表未初始化
 static TaskHandle_t s_tofTask = nullptr;
 
 void scanBus(TwoWire &bus, const char *name)
@@ -63,10 +64,19 @@ static void tof_task(void *arg)
 #endif
             if (ready)
             {
-                uint16_t d = s_tofs[i].read(); // 连续模式下读取最新值
-                
+                uint16_t d = s_tofs[i].read(); // 读取并刷新 ranging_data
                 if (!s_tofs[i].timeoutOccurred())
-                    s_dist_mm[i] = d; // 原子写16位，ESP32上可接受
+                {
+                    uint8_t rs = s_tofs[i].ranging_data.range_status;
+                    s_range_status[i] = rs;
+
+                    // 仅在有效状态时更新距离；非0保持旧值或可置特征值
+                    // if (rs == 0)
+                    // {
+                        s_dist_mm[i] = d;
+                    // }
+                    // 可选: else s_dist_mm[i] = 0xFFFF;  // 若希望标记无效
+                }
             }
         }
         vTaskDelayUntil(&last, period);
@@ -96,7 +106,7 @@ void tof_setup()
             continue;
         }
 
-        s_tofs[i].setDistanceMode(VL53L1X::Long);
+        s_tofs[i].setDistanceMode(VL53L1X::Short);
         s_tofs[i].setMeasurementTimingBudget(TOF_BUDGET_US); // 适配长距离
 
         s_tofs[i].setAddress(TOF_ADDR[i]);
@@ -121,5 +131,17 @@ bool tof_read_all(uint16_t *out, size_t out_len)
         return false;
     for (int i = 0; i < NUM_TOF; ++i)
         out[i] = s_dist_mm[i];
+    return true;
+}
+
+bool tof_read_all_with_status(uint16_t *dist, uint8_t *status, size_t len)
+{
+    if (!dist || !status || len < (size_t)NUM_TOF)
+        return false;
+    for (int i = 0; i < NUM_TOF; ++i)
+    {
+        dist[i] = s_dist_mm[i];
+        status[i] = s_range_status[i];
+    }
     return true;
 }
