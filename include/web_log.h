@@ -15,6 +15,7 @@ extern volatile int g_servoPos;
 extern volatile float g_speed;      // 当前速度 -1~1
 extern volatile uint16_t g_distance1; // 当前距离(mm)
 extern volatile uint16_t g_distance2; // 当前距离(mm)
-
+extern volatile bool g_motorEnabled;
+extern volatile bool g_servoEnabled;
 
 #endif

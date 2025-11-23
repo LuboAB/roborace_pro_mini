@@ -23,9 +23,9 @@ float pid_incremental(float target, float current, float *last_error, float *las
     *last_error = error;
     return delta_u;
 }
-float kp_turn = 0.07f;
+float kp_turn = 0.1f;
 float ki_turn = 0.0f;
-float kd_turn = 0.0f;
+float kd_turn = 0.05f;
 float last_error_turn = 0.0f;
 float last_last_error_turn = 0.0f;
 volatile int F, R, L;
@@ -37,12 +37,13 @@ float pid_position(float target, float current, float *last_error,
     *last_error = error;
     return u;
 }
+
 float culc_speed(float F)
 {
     if (F >= 800)
-        return 60;
+        return 100;
     else
-        return 60 - 80 / 800 * (800 - F);
+        return 100 - 150 / 800 * (800 - F);
 }
 // 200 Hz 编码器处理任务：每 5 ms 读取增量后清零
 extern Servo myservo;
@@ -60,32 +61,56 @@ static void encoder_task(void *arg)
         tof_read_all_with_status(dis, status, 3);
 
         L = dis[0];
-        if (L == 0 || status[0] == 2)
+        // if (L == 0 || status[0] == 2)
+        // {
+        //     L = 2000;
+        // }
+        // R = dis[1];
+        // if (R == 0 || status[1] == 2)
+        // {
+        //     R = 2000;
+        // }
+        // F = dis[2];
+        // if (F == 0 || status[2] == 2)
+        // {
+        //     F = 2000;
+        // }
+        if (L == 0 || status[0] != 0)
         {
             L = 2000;
         }
         R = dis[1];
-        if (R == 0 || status[1] == 2)
+        if (R == 0 || status[1] != 0)
         {
             R = 2000;
         }
         F = dis[2];
-        if (F == 0 || status[2] == 2)
+        if (F == 0 || status[2] != 0)
         {
             F = 2000;
         }
         float servoPos = 80 + pid_position(0, R - L, &last_error_turn, kp_turn, ki_turn, kd_turn);
+        if (!g_servoEnabled)
+        {
+            servoPos = 90;
+        }
+
         if (servoPos < 40)
             servoPos = 40;
         if (servoPos > 135)
             servoPos = 135;
         target = culc_speed(F);
+
         myservo.write(servoPos);
         // target = g_speed * 500;
         adjust = pid_incremental(target, (float)delta, &last_error, &last_last_error, kp, ki, kd);
 
         Serial.println(L);
         speed_setting += adjust / 500;
+        if (!g_motorEnabled)
+        {
+            speed_setting = 0;
+        }
         set_speed(speed_setting);
         g_encoderCount = delta;  // 保存本周期增量
         g_encoderTotal += delta; // 累积（需要可用，不要可忽略）
@@ -123,7 +148,7 @@ void motor_init()
         );
     }
 }
-float max_duty = 0.4f; // 最大占空比限制，防止过载
+float max_duty = 1.0f; // 最大占空比限制，防止过载
 void pwm_set_duty(float duty)
 {
     if (duty < 0)

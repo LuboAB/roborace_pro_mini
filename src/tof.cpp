@@ -8,8 +8,8 @@
 
 // 专用 I2C 控制器与引脚（不占用 Wire）
 static TwoWire I2C_TOF = TwoWire(1); // I2C 外设1
-static const int TOF_SDA = 17;
-static const int TOF_SCL = 18;
+static const int TOF_SDA = 2;
+static const int TOF_SCL = 1;
 static const uint32_t TOF_FREQ = 400000; // 提升到400k加快 I2C 访问
 // 建议为长距离模式集中管理预算与周期
 static const uint32_t TOF_BUDGET_US = 20000;   // 50 ms 预算，提升远距离稳定性
@@ -18,7 +18,7 @@ static const uint16_t TOF_PERIOD_MS = 20;      // 连续测量周期必须 >= �
 // 多传感器配置
 static const int NUM_TOF = 3;
 static VL53L1X s_tofs[NUM_TOF];
-static const int TOF_XSHUT[NUM_TOF] = {5, 6, 7};
+static const int TOF_XSHUT[NUM_TOF] = {36,37,38}; // 控制引脚
 static const uint8_t TOF_ADDR[NUM_TOF] = {0x2A, 0x2B, 0x2D}; // 运行期地址
 static volatile uint16_t s_dist_mm[NUM_TOF] = {0};
 static volatile uint8_t  s_range_status[NUM_TOF] = {255}; // 255 代表未初始化

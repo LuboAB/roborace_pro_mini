@@ -21,6 +21,10 @@ volatile uint16_t g_distance2 = 0;
 // 当前速度 -1~1
 volatile float g_speed = 0.0f;
 
+// 新增: 电机与舵机启用状态变量
+volatile bool g_motorEnabled = false;
+volatile bool g_servoEnabled = false;
+
 // 日志缓冲
 #define LOG_CAP 100
 static String g_logs[LOG_CAP];
@@ -53,6 +57,40 @@ String buildLogs()
     return out;
 }
 
+// 新增: 电机启用接口
+static void handleMotor()
+{
+    if (server.hasArg("toggle"))
+    {
+        g_motorEnabled = !g_motorEnabled;
+        addLog(String("MotorToggle -> ") + (g_motorEnabled ? "ON" : "OFF"));
+    }
+    else if (server.hasArg("set"))
+    {
+        int v = server.arg("set").toInt();
+        g_motorEnabled = (v != 0);
+        addLog(String("MotorSet -> ") + (g_motorEnabled ? "ON" : "OFF"));
+    }
+    server.send(200, "text/plain", String(g_motorEnabled ? "1" : "0"));
+}
+
+// 新增: 舵机启用接口
+static void handleServoEnable()
+{
+    if (server.hasArg("toggle"))
+    {
+        g_servoEnabled = !g_servoEnabled;
+        addLog(String("ServoEnableToggle -> ") + (g_servoEnabled ? "ON" : "OFF"));
+    }
+    else if (server.hasArg("set"))
+    {
+        int v = server.arg("set").toInt();
+        g_servoEnabled = (v != 0);
+        addLog(String("ServoEnableSet -> ") + (g_servoEnabled ? "ON" : "OFF"));
+    }
+    server.send(200, "text/plain", String(g_servoEnabled ? "1" : "0"));
+}
+
 static void handleRoot()
 {
     String page =
@@ -67,20 +105,22 @@ static void handleRoot()
     "<h3>Distance</h3>"
     "<div>D1: <span id='dist1'>--</span> mm</div>"  // 传感器1距离
     "<div>D2: <span id='dist2'>--</span> mm</div>"  // 传感器2距离
+    "<h3>Motor / Servo Enable</h3>"
+    "<div>Motor: <span id='motorState'>--</span> <button onclick='toggleMotor()'>Toggle</button></div>"
+    "<div>Servo: <span id='servoState'>--</span> <button onclick='toggleServoEnable()'>Toggle</button></div>"
     "<h3>Logs</h3><pre id='log' style='background:#111;color:#0f0;padding:8px;height:200px;overflow:auto;font-size:12px;'></pre>"
     "<script>"
     "function setServo(v){servoVal.innerText=v;fetch('/servo?pos='+v);}"
     "function setSpeed(v){speedVal.innerText=v;fetch('/speed?val='+v);}"
     "function pollLogs(){fetch('/logs').then(r=>r.text()).then(t=>{log.textContent=t;log.scrollTop=log.scrollHeight;});}"
-    // 修复：添加闭合大括号和分号，规范格式
-    "function pollDist(){"
-    "  fetch('/distance1').then(r=>r.text()).then(t=>{dist1.innerText=t;});"
-    "  fetch('/distance2').then(r=>r.text()).then(t=>{dist2.innerText=t;});"
-    "};"  // 关键修复：添加 } 闭合函数，添加 ; 结束语句
+    "function pollDist(){fetch('/distance1').then(r=>r.text()).then(t=>{dist1.innerText=t;});fetch('/distance2').then(r=>r.text()).then(t=>{dist2.innerText=t;});}"
+    "function refreshStates(){fetch('/motor').then(r=>r.text()).then(t=>{motorState.innerText=t=='1'?'ON':'OFF';});fetch('/servo_enable').then(r=>r.text()).then(t=>{servoState.innerText=t=='1'?'ON':'OFF';});}"
+    "function toggleMotor(){fetch('/motor?toggle=1').then(_=>refreshStates());}"
+    "function toggleServoEnable(){fetch('/servo_enable?toggle=1').then(_=>refreshStates());}"
     "function syncServo(){fetch('/servo').then(r=>r.text()).then(t=>{servo.value=t;servoVal.innerText=t;});}"
     "function syncSpeed(){fetch('/speed').then(r=>r.text()).then(t=>{speed.value=t;speedVal.innerText=t;});}"
-    "setInterval(pollLogs,1000);setInterval(pollDist,300);setInterval(syncServo,1500);setInterval(syncSpeed,1500);"
-    "pollLogs();pollDist();syncServo();syncSpeed();"
+    "setInterval(pollLogs,1000);setInterval(pollDist,300);setInterval(syncServo,1500);setInterval(syncSpeed,1500);setInterval(refreshStates,2000);"
+    "pollLogs();pollDist();syncServo();syncSpeed();refreshStates();"
     "</script></body></html>";
     server.send(200, "text/html", page);
 }
@@ -151,6 +191,8 @@ static void webTask(void *pv)
     server.on("/distance1", handleDistance1);
     server.on("/distance2", handleDistance2);
     server.on("/speed", handleSpeed);
+    server.on("/motor", handleMotor);
+    server.on("/servo_enable", handleServoEnable);
     server.begin();
     addLog("HTTP server started");
 
