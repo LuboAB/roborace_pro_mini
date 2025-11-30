@@ -28,7 +28,9 @@ float ki_turn = 0.0f;
 float kd_turn = 0.05f;
 float last_error_turn = 0.0f;
 float last_last_error_turn = 0.0f;
-volatile int F, R, L;
+volatile int distance_F, distance_R, distance_L;
+volatile int state_F, state_R, state_L;
+
 float pid_position(float target, float current, float *last_error,
                    float kp, float ki, float kd)
 {
@@ -38,12 +40,12 @@ float pid_position(float target, float current, float *last_error,
     return u;
 }
 
-float culc_speed(float F)
+float culc_speed(float distance_F)
 {
-    if (F >= 800)
+    if (distance_F >= 800)
         return 100;
     else
-        return 100 - 150 / 800 * (800 - F);
+        return 100 - 150 / 800 * (800 - distance_F);
 }
 // 200 Hz 编码器处理任务：每 5 ms 读取增量后清零
 extern Servo myservo;
@@ -60,36 +62,16 @@ static void encoder_task(void *arg)
         uint8_t status[3];
         tof_read_all_with_status(dis, status, 3);
 
-        L = dis[0];
-        // if (L == 0 || status[0] == 2)
-        // {
-        //     L = 2000;
-        // }
-        // R = dis[1];
-        // if (R == 0 || status[1] == 2)
-        // {
-        //     R = 2000;
-        // }
-        // F = dis[2];
-        // if (F == 0 || status[2] == 2)
-        // {
-        //     F = 2000;
-        // }
-        if (L == 0 || status[0] != 0)
-        {
-            L = 2000;
-        }
-        R = dis[1];
-        if (R == 0 || status[1] != 0)
-        {
-            R = 2000;
-        }
-        F = dis[2];
-        if (F == 0 || status[2] != 0)
-        {
-            F = 2000;
-        }
-        float servoPos = 80 + pid_position(0, R - L, &last_error_turn, kp_turn, ki_turn, kd_turn);
+        state_L = status[0];
+        if (distance_L == 0 || status[0] != 0)  distance_L = 2000;
+        else distance_L = dis[0];
+        state_R = status[1];
+        if (distance_R == 0 || status[1] != 0) distance_R = 2000;
+        else distance_R = dis[1];
+        state_F = status[2];
+        if (distance_F == 0 || status[2] != 0)  distance_F = 2000;
+        else  distance_F = dis[2];
+        float servoPos = 80 + pid_position(0, distance_R - distance_L, &last_error_turn, kp_turn, ki_turn, kd_turn);
         if (!g_servoEnabled)
         {
             servoPos = 90;
@@ -99,13 +81,13 @@ static void encoder_task(void *arg)
             servoPos = 40;
         if (servoPos > 135)
             servoPos = 135;
-        target = culc_speed(F);
+        target = culc_speed(distance_F);
 
         myservo.write(servoPos);
         // target = g_speed * 500;
         adjust = pid_incremental(target, (float)delta, &last_error, &last_last_error, kp, ki, kd);
 
-        Serial.println(L);
+        Serial.println(distance_L);
         speed_setting += adjust / 500;
         if (!g_motorEnabled)
         {

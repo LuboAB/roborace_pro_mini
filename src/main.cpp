@@ -42,9 +42,6 @@ void loop()
     uint16_t dist[3] = {0};
     uint8_t status[3] = {0};
     tof_read_all_with_status(dist, status, 3);
-
-    g_distance1 = L;
-    g_distance2 = R;
     
     display.clearDisplay();
     display.setTextSize(1);
@@ -56,13 +53,13 @@ void loop()
     display.print("servo: ");
     display.println(servoPos);
     display.print("D0: ");
-    display.print(L);
+    display.print(distance_L);
     display.println(" mm");
     display.print("D1: ");
-    display.print(R);
+    display.print(distance_R);
     display.println(" mm");
     display.print("D2: ");
-    display.print(F);
+    display.print(distance_F);
     display.println(" mm");
     display.print(" status:");
     display.println(status[2]);
@@ -74,16 +71,14 @@ void test_function()
 
     uint16_t dist[3] = {0};
     tof_read_all(dist, 2);
-    g_distance1 = dist[0];
-    g_distance2 = dist[1];
 
-    int L = dist[0];
-    if (L > 2800)
-        L = 3000;
-    int R = dist[1];
-    if (R > 2800)
-        R = 3000;
-    int error = R - L;
+    int distance_L = dist[0];
+    if (distance_L > 2800)
+        distance_L = 3000;
+    int distance_R = dist[1];
+    if (distance_R > 2800)
+        distance_R = 3000;
+    int error = distance_R - distance_L;
     float Kp = 0.07;
     servoPos = 80 + error * Kp;
     if (servoPos < 30)
