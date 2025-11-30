@@ -30,6 +30,7 @@ float last_error_turn = 0.0f;
 float last_last_error_turn = 0.0f;
 volatile int distance_F, distance_R, distance_L;
 volatile int state_F, state_R, state_L;
+volatile int servo_default_pos = 90;
 
 float pid_position(float target, float current, float *last_error,
                    float kp, float ki, float kd)
@@ -42,10 +43,12 @@ float pid_position(float target, float current, float *last_error,
 
 float culc_speed(float distance_F)
 {
+    float speed;
     if (distance_F >= 800)
-        return 100;
+        speed = 100;
     else
-        return 100 - 150 / 800 * (800 - distance_F);
+        speed = 100 - 150.0*(800 - distance_F)/ 800;
+    return speed;
 }
 // 200 Hz 编码器处理任务：每 5 ms 读取增量后清零
 extern Servo myservo;
@@ -63,24 +66,30 @@ static void encoder_task(void *arg)
         tof_read_all_with_status(dis, status, 3);
 
         state_L = status[0];
-        if (distance_L == 0 || status[0] != 0)  distance_L = 2000;
-        else distance_L = dis[0];
+        if (distance_L == 0 || status[0] != 0)
+            distance_L = 2000;
+        else
+            distance_L = dis[0];
         state_R = status[1];
-        if (distance_R == 0 || status[1] != 0) distance_R = 2000;
-        else distance_R = dis[1];
+        if (distance_R == 0 || status[1] != 0)
+            distance_R = 2000;
+        else
+            distance_R = dis[1];
         state_F = status[2];
-        if (distance_F == 0 || status[2] != 0)  distance_F = 2000;
-        else  distance_F = dis[2];
-        float servoPos = 80 + pid_position(0, distance_R - distance_L, &last_error_turn, kp_turn, ki_turn, kd_turn);
+        if (distance_F == 0 || status[2] != 0)
+            distance_F = 2000;
+        else
+            distance_F = dis[2];
+        servoPos = 80 + pid_position(0, distance_R - distance_L, &last_error_turn, kp_turn, ki_turn, kd_turn);
         if (!g_servoEnabled)
         {
-            servoPos = 90;
+            servoPos = servo_default_pos;
         }
 
         if (servoPos < 40)
             servoPos = 40;
-        if (servoPos > 135)
-            servoPos = 135;
+        if (servoPos > 120)
+            servoPos = 120;
         target = culc_speed(distance_F);
 
         myservo.write(servoPos);

@@ -1,13 +1,10 @@
-#include <Arduino.h>
-#include <WiFi.h>
-#include <WebServer.h>
-#include <Servo.h>
 #include "web_log.h"
 
 // WiFi 配置（如需改为 AP，仅修改 webTask 内的 WiFi 初始化逻辑）
-static const char *WIFI_SSID = "NEUsmartcar";
-static const char *WIFI_PWD = "NEUCARNB";
-
+// static const char *WIFI_SSID = "NEUsmartcar";
+// static const char *WIFI_PWD = "NEUCARNB";
+static const char *WIFI_SSID = "Xiaomi13";
+static const char *WIFI_PWD = "11111111";
 // WebServer 实例仅在本模块内可见
 static WebServer server(80);
 
@@ -20,6 +17,7 @@ volatile float g_speed = 0.0f;
 // 新增: 电机与舵机启用状态变量
 volatile bool g_motorEnabled = false;
 volatile bool g_servoEnabled = false;
+
 
 // 日志缓冲
 #define LOG_CAP 100
@@ -168,9 +166,9 @@ static void handleRoot()
       "</section>"
 
       "</main>"
-
+//频率
       "<script>"
-      "var distInterval = 50;"
+      "var distInterval = 100;"
       "document.addEventListener('DOMContentLoaded', function(){"
       "document.getElementById('freqVal').innerText = distInterval;"
       "});"
@@ -287,6 +285,73 @@ static void handleSpeed()
   }
 }
 
+// ================== 新增: /debug 页面 ==================
+static void handleDebug()
+{
+  String page =
+      "<!DOCTYPE html><html><head><meta charset='utf-8'/>"
+      "<meta name='viewport' content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no'/>"
+      "<title>Debug</title>"
+      "<style>"
+      "body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#eee;}"
+      "main{padding:14px;}"
+      "h2{font-size:18px;margin:0 0 10px 0;}"
+      "section{margin-bottom:14px;padding:10px;border-radius:8px;background:#1b1f24;border:1px solid #333;}"
+      "label{font-size:14px;color:#ccc;}"
+      ".value{display:inline-block;min-width:40px;margin-left:8px;font-weight:bold;}"
+      "input[type=range]{width:100%;margin-top:8px;-webkit-appearance:none;background:transparent;}"
+      "input[type=range]::-webkit-slider-runnable-track{height:6px;background:#444;border-radius:3px;}"
+      "input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#61dafb;margin-top:-8px;border:2px solid #111;}"
+      "input[type=range]::-moz-range-track{height:6px;background:#444;border-radius:3px;}"
+      "input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#61dafb;border:2px solid #111;}"
+      ".note{font-size:11px;color:#888;margin-top:6px;}"
+      "a{color:#61dafb;text-decoration:none;font-size:13px;}"
+      "</style>"
+      "</head><body>"
+      "<main>"
+      "<h2>Debug Panel</h2>"
+      "<section>"
+      "<label>servo_default_pos (0~180)</label>"
+      "<span class='value' id='val'>" +
+      String(servo_default_pos) +
+      "</span>"
+      "<input id='slider' type='range' min='0' max='180' value='" +
+      String(servo_default_pos) +
+      "' oninput='onChg(this.value)'/>"
+      "<div class='note'>拖动滑块实时更新服务器变量 servo_default_pos。</div>"
+      "</section>"
+      "<a href='/'>返回主页面</a>"
+      "</main>"
+      "<script>"
+      "function onChg(v){"
+      "document.getElementById('val').innerText=v;"
+      "fetch('/debug_servo_default?val='+v).catch(()=>{});"
+      "}"
+      "</script></body></html>";
+
+  server.send(200, "text/html", page);
+}
+
+// 设置 / 读取 servo_default_pos
+static void handleDebugServoDefault()
+{
+  if (server.hasArg("val"))
+  {
+    int v = server.arg("val").toInt();
+    if (v < 0)
+      v = 0;
+    if (v > 180)
+      v = 180;
+    servo_default_pos = v;
+    addLog("servo_default_pos set -> " + String(v));
+    server.send(200, "text/plain", String(v));
+  }
+  else
+  {
+    server.send(200, "text/plain", String(servo_default_pos));
+  }
+}
+
 static void webTask(void *pv)
 {
   WiFi.mode(WIFI_STA);
@@ -309,6 +374,11 @@ static void webTask(void *pv)
   server.on("/speed", handleSpeed);
   server.on("/motor", handleMotor);
   server.on("/servo_enable", handleServoEnable);
+
+  // 新增 debug 路由
+  server.on("/debug", handleDebug);
+  server.on("/debug_servo_default", handleDebugServoDefault);
+
   server.begin();
   addLog("HTTP server started");
 

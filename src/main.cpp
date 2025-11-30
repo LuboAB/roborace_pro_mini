@@ -15,8 +15,7 @@ void setup()
     Serial.begin(115200);
 
     myservo.attach(12, 500, 2500);
-    myservo.write(g_servoPos);
-    addLog("Servo attached at " + String(g_servoPos));
+    myservo.write(servo_default_pos);
 
     web_log_start();
     addLog("Boot");
@@ -61,8 +60,8 @@ void loop()
     display.print("D2: ");
     display.print(distance_F);
     display.println(" mm");
-    display.print(" status:");
-    display.println(status[2]);
+    display.print("IP: ");
+    display.println( WiFi.localIP().toString());
     display.display();
 }
 

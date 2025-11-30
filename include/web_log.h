@@ -3,6 +3,9 @@
 
 #include <Arduino.h>
 #include "motor.h"
+#include <WiFi.h>
+#include <WebServer.h>
+#include <Servo.h>
 // 在另一核心启动 Web 服务任务
 void web_log_start();
 
